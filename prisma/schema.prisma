@@ -1,0 +1,180 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum RegistrationStep {
+  FIRST_NAME
+  LAST_NAME
+  WAITING_PAYMENT
+  APPROVED
+}
+
+enum AccessStatus {
+  NEW
+  PENDING_PAYMENT
+  APPROVED
+  REJECTED
+}
+
+enum PackageStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum EnrollmentStatus {
+  PENDING
+  ACTIVE
+  REVOKED
+  EXPIRED
+}
+
+enum PaymentStatus {
+  WAITING_PROOF
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+}
+
+model Student {
+  id                String           @id @default(cuid())
+  telegramId        String           @unique
+  telegramUsername  String?
+  telegramFirstName String?
+  telegramLastName  String?
+  firstName         String?
+  lastName          String?
+  registrationStep  RegistrationStep @default(FIRST_NAME)
+  accessStatus      AccessStatus     @default(NEW)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  enrollments Enrollment[]
+  payments    Payment[]
+  approvals   Approval[]
+
+  @@index([accessStatus])
+  @@index([telegramUsername])
+}
+
+model Package {
+  id           String        @id @default(cuid())
+  slug         String        @unique
+  title        String
+  description  String?
+  gradeRange   String
+  durationDays Int?
+  currency     String        @default("ETB")
+  priceAmount  Decimal?      @db.Decimal(10, 2)
+  status       PackageStatus @default(ACTIVE)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  enrollments Enrollment[]
+  payments    Payment[]
+  subjects    PackageSubject[]
+}
+
+model Enrollment {
+  id         String           @id @default(cuid())
+  studentId  String
+  packageId  String
+  status     EnrollmentStatus @default(PENDING)
+  approvedAt DateTime?
+  expiresAt  DateTime?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  package Package @relation(fields: [packageId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, packageId])
+  @@index([status])
+}
+
+model Payment {
+  id              String        @id @default(cuid())
+  studentId       String
+  packageId       String
+  status          PaymentStatus @default(WAITING_PROOF)
+  amount          Decimal?      @db.Decimal(10, 2)
+  currency        String        @default("ETB")
+  proofReceiver   String        @default("ALPHA_TUTOR_21")
+  adminNote       String?
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  package Package @relation(fields: [packageId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([studentId])
+}
+
+model Approval {
+  id         String   @id @default(cuid())
+  studentId  String
+  adminId    String
+  action     String
+  note       String?
+  createdAt  DateTime @default(now())
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@index([adminId])
+}
+
+model Subject {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  title       String
+  titleAm     String?
+  description String?
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  packages PackageSubject[]
+  assets   SubjectAsset[]
+}
+
+model PackageSubject {
+  packageId String
+  subjectId String
+  sortOrder Int @default(0)
+
+  package Package @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@id([packageId, subjectId])
+}
+
+model SubjectAsset {
+  id          String   @id @default(cuid())
+  subjectId   String
+  title       String
+  description String?
+  bucket      String
+  path        String
+  publicUrl   String?
+  mimeType    String?
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([bucket, path])
+  @@index([subjectId])
+  @@index([isActive])
+}

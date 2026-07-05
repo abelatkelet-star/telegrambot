@@ -1,11 +1,9 @@
-const fs = require("fs");
-const path = require("path");
 const notes = require("./notes");
+const db = require("./repository");
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const ADMIN_USERNAME = (process.env.ADMIN_USERNAME || "ALPHA_TUTOR_21").replace(/^@/, "");
 const ADMIN_CHAT_ID = process.env.ADMIN_CHAT_ID ? String(process.env.ADMIN_CHAT_ID) : "";
-const DATA_FILE = process.env.DATA_FILE || path.join(process.cwd(), "data", "bot-data.json");
 const API = BOT_TOKEN ? `https://api.telegram.org/bot${BOT_TOKEN}` : "";
 
 if (!BOT_TOKEN) {
@@ -34,22 +32,6 @@ const backMenu = {
 };
 
 let offset = 0;
-let data = loadData();
-
-function loadData() {
-  try {
-    if (!fs.existsSync(DATA_FILE)) return { users: {} };
-    return JSON.parse(fs.readFileSync(DATA_FILE, "utf8"));
-  } catch (error) {
-    console.error("Could not load data file:", error.message);
-    return { users: {} };
-  }
-}
-
-function saveData() {
-  fs.mkdirSync(path.dirname(DATA_FILE), { recursive: true });
-  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
-}
 
 async function telegram(method, payload) {
   const response = await fetch(`${API}/${method}`, {
@@ -91,29 +73,6 @@ async function answerCallback(callbackQuery, text) {
   });
 }
 
-function getUser(id) {
-  if (!data.users[id]) {
-    data.users[id] = {
-      id,
-      firstName: "",
-      lastName: "",
-      username: "",
-      status: "new",
-      step: "first_name",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-  }
-  return data.users[id];
-}
-
-function updateProfile(user, from) {
-  user.telegramFirstName = from.first_name || "";
-  user.telegramLastName = from.last_name || "";
-  user.username = from.username || "";
-  user.updatedAt = new Date().toISOString();
-}
-
 function isAdmin(from) {
   if (!from) return false;
   if (ADMIN_CHAT_ID && String(from.id) === ADMIN_CHAT_ID) return true;
@@ -135,9 +94,9 @@ function welcomeMessage() {
   );
 }
 
-function homeMessage(user) {
+function homeMessage(student) {
   return (
-    `✅ <b>Approved: ${escapeHtml(user.firstName)} ${escapeHtml(user.lastName)}</b>\n\n` +
+    `✅ <b>Approved: ${escapeHtml(student.firstName)} ${escapeHtml(student.lastName)}</b>\n\n` +
     "Welcome to <b>Alpha Tutor</b>, student! 🚀\n\n" +
     "I'm your personal tutor for the <b>10-Day Grade 12 Reading Challenge!</b>\n\n" +
     "የ12ኛ ክፍል የማህበራዊ ሳይንስ ማትሪክ ፈተና የሚሆን የ10 ቀናት የንባብ ቻሌንጅ የግል አስተማሪዎ፡-\n\n" +
@@ -150,40 +109,40 @@ function homeMessage(user) {
   );
 }
 
-function paymentMessage(user) {
+function paymentMessage(student) {
   return (
-    `✅ Registration completed: <b>${escapeHtml(user.firstName)} ${escapeHtml(user.lastName)}</b>\n\n` +
+    `✅ Registration completed: <b>${escapeHtml(student.firstName)} ${escapeHtml(student.lastName)}</b>\n\n` +
     "⏳ <b>Payment Waiting Page</b>\n\n" +
     `Please pay manually and send payment proof to @${ADMIN_USERNAME}.\n\n` +
     "After admin confirms your payment, your notes will unlock automatically.\n\n" +
-    `<b>Your User ID:</b> <code>${user.id}</code>\n` +
+    `<b>Your User ID:</b> <code>${student.telegramId}</code>\n` +
     "Send this User ID together with your payment proof."
   );
 }
 
-function statusMessage(user) {
-  if (user.status === "approved") return "✅ Your account is approved. Choose any subject from the home page.";
-  if (user.status === "pending") {
+function statusMessage(student) {
+  if (student.accessStatus === "APPROVED") return "✅ Your account is approved. Choose any subject from the home page.";
+  if (["PENDING_PAYMENT", "REJECTED"].includes(student.accessStatus)) {
     return (
       "⏳ Your account is waiting for manual payment approval.\n\n" +
-      `Send payment proof and User ID <code>${user.id}</code> to @${ADMIN_USERNAME}.`
+      `Send payment proof and User ID <code>${student.telegramId}</code> to @${ADMIN_USERNAME}.`
     );
   }
   return "Please send /start to begin registration.";
 }
 
-function adminNotice(user) {
+function adminNotice(student) {
   return (
     "🧾 <b>New student waiting for approval</b>\n\n" +
-    `<b>Name:</b> ${escapeHtml(user.firstName)} ${escapeHtml(user.lastName)}\n` +
-    `<b>Telegram:</b> ${user.username ? `@${escapeHtml(user.username)}` : "No username"}\n` +
-    `<b>User ID:</b> <code>${user.id}</code>\n\n` +
-    `Approve: <code>/approve ${user.id}</code>\n` +
-    `Reject: <code>/reject ${user.id}</code>`
+    `<b>Name:</b> ${escapeHtml(student.firstName)} ${escapeHtml(student.lastName)}\n` +
+    `<b>Telegram:</b> ${student.telegramUsername ? `@${escapeHtml(student.telegramUsername)}` : "No username"}\n` +
+    `<b>User ID:</b> <code>${student.telegramId}</code>\n\n` +
+    `Approve: <code>/approve ${student.telegramId}</code>\n` +
+    `Reject: <code>/reject ${student.telegramId}</code>`
   );
 }
 
-function subjectMessage(subjectKey) {
+function fallbackSubjectMessage(subjectKey) {
   const subject = notes[subjectKey];
   const lessons = subject.lessons
     .map((lesson, index) => `<b>${index + 1}. ${escapeHtml(lesson.title)}</b>\n${escapeHtml(lesson.body)}`)
@@ -191,31 +150,41 @@ function subjectMessage(subjectKey) {
   return `<b>${escapeHtml(subject.title)}</b>\n\n${lessons}`;
 }
 
+function assetSubjectMessage(subject) {
+  const title = `${subject.title}${subject.titleAm ? ` (${subject.titleAm})` : ""}`;
+  if (!subject.assets.length) {
+    return `<b>${escapeHtml(title)}</b>\n\nNo uploaded files found yet. Upload files to Supabase Storage and seed/update SubjectAsset rows.`;
+  }
+
+  const files = subject.assets
+    .map((asset, index) => {
+      const label = `${index + 1}. ${asset.title}`;
+      if (asset.publicUrl) return `<a href="${escapeHtml(asset.publicUrl)}">${escapeHtml(label)}</a>`;
+      return `${escapeHtml(label)}\nStorage: <code>${escapeHtml(asset.bucket)}/${escapeHtml(asset.path)}</code>`;
+    })
+    .join("\n\n");
+
+  return `<b>${escapeHtml(title)}</b>\n\n${files}`;
+}
+
 async function handleMessage(message) {
   if (!message.text) return;
 
   const chatId = message.chat.id;
-  const id = String(message.from.id);
   const text = message.text.trim();
-  const user = getUser(id);
-  updateProfile(user, message.from);
+  let student = await db.getOrCreateStudent(message.from);
 
   if (text === "/start") {
-    if (user.status === "approved") {
-      await sendMessage(chatId, homeMessage(user), subjectMenu);
+    if (student.accessStatus === "APPROVED") {
+      await sendMessage(chatId, homeMessage(student), subjectMenu);
       return;
     }
 
-    if (user.firstName && user.lastName) {
-      user.status = "pending";
-      user.step = "waiting_payment";
-      saveData();
-      await sendMessage(chatId, paymentMessage(user), waitingMenu);
+    if (student.firstName && student.lastName) {
+      await sendMessage(chatId, paymentMessage(student), waitingMenu);
       return;
     }
 
-    user.step = user.firstName ? "last_name" : "first_name";
-    saveData();
     await sendMessage(chatId, welcomeMessage());
     return;
   }
@@ -225,35 +194,25 @@ async function handleMessage(message) {
     return;
   }
 
-  if (user.status === "approved") {
-    await sendMessage(chatId, homeMessage(user), subjectMenu);
+  if (student.accessStatus === "APPROVED") {
+    await sendMessage(chatId, homeMessage(student), subjectMenu);
     return;
   }
 
-  if (user.step === "first_name") {
-    user.firstName = cleanName(text);
-    user.step = "last_name";
-    saveData();
+  if (student.registrationStep === "FIRST_NAME") {
+    student = await db.setFirstName(student.telegramId, cleanName(text));
     await sendMessage(chatId, "Great. Now send your <b>last name</b>.");
     return;
   }
 
-  if (user.step === "last_name") {
-    user.lastName = cleanName(text);
-    user.status = "pending";
-    user.step = "waiting_payment";
-    saveData();
-    await sendMessage(chatId, paymentMessage(user), waitingMenu);
-    await notifyAdmin(user);
+  if (student.registrationStep === "LAST_NAME") {
+    student = await db.setLastNameAndPending(student.telegramId, cleanName(text));
+    await sendMessage(chatId, paymentMessage(student), waitingMenu);
+    await notifyAdmin(student);
     return;
   }
 
-  if (user.status === "pending") {
-    await sendMessage(chatId, statusMessage(user), waitingMenu);
-    return;
-  }
-
-  await sendMessage(chatId, "Please send /start to begin registration.");
+  await sendMessage(chatId, statusMessage(student), waitingMenu);
 }
 
 async function handleCommand(message) {
@@ -267,113 +226,107 @@ async function handleCommand(message) {
   }
 
   if (command === "/pending") {
-    const pending = Object.values(data.users).filter((user) => user.status === "pending");
-    await sendMessage(chatId, pending.length ? formatUsers(pending) : "No pending students.");
+    const pending = await db.getPendingStudents();
+    await sendMessage(chatId, pending.length ? formatStudents(pending) : "No pending students.");
     return;
   }
 
   if (command === "/users") {
-    const users = Object.values(data.users);
-    await sendMessage(chatId, users.length ? formatUsers(users) : "No students registered yet.");
+    const students = await db.getAllStudents();
+    await sendMessage(chatId, students.length ? formatStudents(students) : "No students registered yet.");
     return;
   }
 
   if (command === "/approve") {
-    await changeUserStatus(chatId, arg, "approved");
+    await changeStudentStatus(chatId, arg, message.from.id, "approved");
     return;
   }
 
   if (command === "/reject") {
-    await changeUserStatus(chatId, arg, "pending");
+    await changeStudentStatus(chatId, arg, message.from.id, "rejected");
     return;
   }
 
   await sendMessage(chatId, "Available command: /start");
 }
 
-async function changeUserStatus(adminChatId, targetId, status) {
-  if (!targetId || !data.users[targetId]) {
-    await sendMessage(adminChatId, "Student not found. Use /pending to see waiting students.");
+async function changeStudentStatus(adminChatId, targetTelegramId, adminTelegramId, action) {
+  if (!targetTelegramId) {
+    await sendMessage(adminChatId, "Send a User ID. Example: /approve 123456789");
     return;
   }
 
-  const target = data.users[targetId];
-  target.status = status;
-  target.step = status === "approved" ? "approved" : "waiting_payment";
-  target.updatedAt = new Date().toISOString();
-  saveData();
+  try {
+    if (action === "approved") {
+      const student = await db.approveStudent(targetTelegramId, adminTelegramId);
+      await sendMessage(adminChatId, `Approved ${escapeHtml(student.firstName)} ${escapeHtml(student.lastName)}.`);
+      await sendMessage(student.telegramId, homeMessage(student), subjectMenu).catch((error) => {
+        console.error("Could not notify approved student:", error.message);
+      });
+      return;
+    }
 
-  if (status === "approved") {
-    await sendMessage(adminChatId, `Approved ${escapeHtml(target.firstName)} ${escapeHtml(target.lastName)}.`);
-    await sendMessage(target.id, homeMessage(target), subjectMenu).catch((error) => {
-      console.error("Could not notify approved student:", error.message);
+    const student = await db.rejectStudent(targetTelegramId, adminTelegramId);
+    await sendMessage(adminChatId, `Returned ${escapeHtml(student.firstName)} ${escapeHtml(student.lastName)} to payment waiting.`);
+    await sendMessage(student.telegramId, "Your payment is not approved yet. Please contact admin again with correct proof.", waitingMenu).catch((error) => {
+      console.error("Could not notify rejected student:", error.message);
     });
-    return;
+  } catch (error) {
+    console.error(error);
+    await sendMessage(adminChatId, "Student not found. Use /pending to see waiting students.");
   }
-
-  await sendMessage(adminChatId, `Returned ${escapeHtml(target.firstName)} ${escapeHtml(target.lastName)} to payment waiting.`);
-  await sendMessage(target.id, "Your payment is not approved yet. Please contact admin again with correct proof.", waitingMenu).catch((error) => {
-    console.error("Could not notify rejected student:", error.message);
-  });
 }
 
 async function handleCallback(callbackQuery) {
   const message = callbackQuery.message;
   const chatId = message.chat.id;
   const messageId = message.message_id;
-  const user = getUser(String(callbackQuery.from.id));
-  updateProfile(user, callbackQuery.from);
-  saveData();
-
+  const student = await db.getOrCreateStudent(callbackQuery.from);
   const action = callbackQuery.data;
 
   if (action === "status") {
     await answerCallback(callbackQuery, "Status checked");
-    await editMessage(chatId, messageId, statusMessage(user), user.status === "approved" ? subjectMenu : waitingMenu);
+    await editMessage(chatId, messageId, statusMessage(student), student.accessStatus === "APPROVED" ? subjectMenu : waitingMenu);
     return;
   }
 
   if (action === "home") {
     await answerCallback(callbackQuery, "Home");
-    await editMessage(chatId, messageId, homeMessage(user), subjectMenu);
+    await editMessage(chatId, messageId, homeMessage(student), subjectMenu);
     return;
   }
 
   if (action.startsWith("subject:")) {
-    if (user.status !== "approved") {
+    if (student.accessStatus !== "APPROVED") {
       await answerCallback(callbackQuery, "Waiting for approval");
-      await editMessage(chatId, messageId, statusMessage(user), waitingMenu);
+      await editMessage(chatId, messageId, statusMessage(student), waitingMenu);
       return;
     }
 
     const subjectKey = action.split(":")[1];
-    if (!notes[subjectKey]) {
-      await answerCallback(callbackQuery, "Subject not found");
-      return;
-    }
-
-    await answerCallback(callbackQuery, notes[subjectKey].title);
-    await editMessage(chatId, messageId, subjectMessage(subjectKey), backMenu);
+    const subject = await db.getSubjectAssets(subjectKey);
+    await answerCallback(callbackQuery, subject ? subject.title : "Subject");
+    await editMessage(chatId, messageId, subject ? assetSubjectMessage(subject) : fallbackSubjectMessage(subjectKey), backMenu);
   }
 }
 
-async function notifyAdmin(user) {
+async function notifyAdmin(student) {
   if (!ADMIN_CHAT_ID) {
-    console.log(`New pending student ${user.id}: ${user.firstName} ${user.lastName}. Set ADMIN_CHAT_ID to receive bot messages.`);
+    console.log(`New pending student ${student.telegramId}: ${student.firstName} ${student.lastName}. Set ADMIN_CHAT_ID to receive bot messages.`);
     return;
   }
 
-  await sendMessage(ADMIN_CHAT_ID, adminNotice(user)).catch((error) => {
+  await sendMessage(ADMIN_CHAT_ID, adminNotice(student)).catch((error) => {
     console.error("Could not notify admin:", error.message);
   });
 }
 
-function formatUsers(users) {
-  return users
-    .map((user) => {
-      const name = `${user.firstName || "-"} ${user.lastName || ""}`.trim();
-      const username = user.username ? `@${user.username}` : "no username";
-      return `${escapeHtml(name)} | ${escapeHtml(username)} | <code>${user.id}</code> | ${user.status}`;
+function formatStudents(students) {
+  return students
+    .map((student) => {
+      const name = `${student.firstName || "-"} ${student.lastName || ""}`.trim();
+      const username = student.telegramUsername ? `@${student.telegramUsername}` : "no username";
+      return `${escapeHtml(name)} | ${escapeHtml(username)} | <code>${student.telegramId}</code> | ${student.accessStatus}`;
     })
     .join("\n");
 }
@@ -383,10 +336,11 @@ function cleanName(value) {
 }
 
 function escapeHtml(value) {
-  return String(value)
+  return String(value ?? "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 async function poll() {
