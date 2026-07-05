@@ -236,7 +236,11 @@ async function handleCommand(message) {
 
   if (command === "/pending") {
     const pending = await db.getPendingStudents();
-    await sendMessage(chatId, pending.length ? formatStudents(pending) : "No pending students.", pending.length ? pendingApprovalMenu(pending) : undefined);
+    await sendMessage(
+      chatId,
+      pending.length ? "Pending students. Tap a student name to approve." : "No pending students.",
+      pending.length ? pendingApprovalMenu(pending) : undefined
+    );
     return;
   }
 
@@ -397,7 +401,7 @@ function pendingApprovalMenu(students) {
   return {
     inline_keyboard: students.map((student) => [
       {
-        text: `Approve ${buttonName(student)}`,
+        text: buttonName(student),
         callback_data: `admin:approve:${student.telegramId}`
       }
     ])
