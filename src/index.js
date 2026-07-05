@@ -208,6 +208,9 @@ async function handleMessage(message) {
   if (student.registrationStep === "LAST_NAME") {
     student = await db.setLastNameAndPending(student.telegramId, cleanName(text));
     await sendMessage(chatId, paymentMessage(student), waitingMenu);
+    db.ensurePendingEnrollmentAndPayment(student).catch((error) => {
+      console.error("Could not create pending enrollment/payment:", error.message);
+    });
     await notifyAdmin(student);
     return;
   }

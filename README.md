@@ -36,6 +36,8 @@ npm run db:push
 npm run db:seed
 ```
 
+If `db:push` hangs on the Supabase pooler, open Supabase SQL Editor and run [supabase/setup.sql](supabase/setup.sql). It creates the same schema and seed records without using Prisma's setup connection.
+
 The seed creates:
 
 - one package: `10-Day Grade 12 Social Science Reading Challenge`
