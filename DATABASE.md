@@ -48,11 +48,28 @@ The student still sends payment proof manually to `@ALPHA_TUTOR_21`; the databas
 `SubjectAsset` stores file metadata only:
 
 - `bucket`: Supabase Storage bucket, for example `subjects`
-- `path`: file path, for example `history/grade-9-12-short-notes.pdf`
+- `path`: file path, for example `history/grade-9-short-notes.pdf`
 - `publicUrl`: optional public URL if you use a public bucket
 - `mimeType`: for example `application/pdf`
 
 Upload PDFs or other files to Supabase Storage. The database should point to those files; it should not store the actual PDFs.
+
+For grade tabs, upload one PDF per subject and grade:
+
+```text
+subjects/history/grade-9-short-notes.pdf
+subjects/history/grade-10-short-notes.pdf
+subjects/history/grade-11-short-notes.pdf
+subjects/history/grade-12-short-notes.pdf
+subjects/geography/grade-9-short-notes.pdf
+subjects/geography/grade-10-short-notes.pdf
+subjects/geography/grade-11-short-notes.pdf
+subjects/geography/grade-12-short-notes.pdf
+subjects/economics/grade-9-short-notes.pdf
+subjects/economics/grade-10-short-notes.pdf
+subjects/economics/grade-11-short-notes.pdf
+subjects/economics/grade-12-short-notes.pdf
+```
 
 If `publicUrl` is empty, the bot builds a public URL from:
 

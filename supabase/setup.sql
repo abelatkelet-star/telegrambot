@@ -173,9 +173,18 @@ on conflict ("packageId", "subjectId") do update set
 
 insert into "SubjectAsset" ("id", "subjectId", "title", "description", "bucket", "path", "mimeType", "sortOrder", "isActive", "updatedAt")
 values
-  ('asset_history_pdf', 'sub_history', 'History Grade 9-12 Short Notes', 'Upload this PDF in the matching Supabase Storage path.', 'subjects', 'history/grade-9-12-short-notes.pdf', 'application/pdf', 1, true, current_timestamp),
-  ('asset_geography_pdf', 'sub_geography', 'Geography Grade 9-12 Short Notes', 'Upload this PDF in the matching Supabase Storage path.', 'subjects', 'geography/grade-9-12-short-notes.pdf', 'application/pdf', 1, true, current_timestamp),
-  ('asset_economics_pdf', 'sub_economics', 'Economics Grade 9-12 Short Notes', 'Upload this PDF in the matching Supabase Storage path.', 'subjects', 'economics/grade-9-12-short-notes.pdf', 'application/pdf', 1, true, current_timestamp)
+  ('asset_history_grade_9_pdf', 'sub_history', 'History Grade 9 Short Notes', 'Upload this PDF in the matching Supabase Storage path.', 'subjects', 'history/grade-9-short-notes.pdf', 'application/pdf', 9, true, current_timestamp),
+  ('asset_history_grade_10_pdf', 'sub_history', 'History Grade 10 Short Notes', 'Upload this PDF in the matching Supabase Storage path.', 'subjects', 'history/grade-10-short-notes.pdf', 'application/pdf', 10, true, current_timestamp),
+  ('asset_history_grade_11_pdf', 'sub_history', 'History Grade 11 Short Notes', 'Upload this PDF in the matching Supabase Storage path.', 'subjects', 'history/grade-11-short-notes.pdf', 'application/pdf', 11, true, current_timestamp),
+  ('asset_history_grade_12_pdf', 'sub_history', 'History Grade 12 Short Notes', 'Upload this PDF in the matching Supabase Storage path.', 'subjects', 'history/grade-12-short-notes.pdf', 'application/pdf', 12, true, current_timestamp),
+  ('asset_geography_grade_9_pdf', 'sub_geography', 'Geography Grade 9 Short Notes', 'Upload this PDF in the matching Supabase Storage path.', 'subjects', 'geography/grade-9-short-notes.pdf', 'application/pdf', 9, true, current_timestamp),
+  ('asset_geography_grade_10_pdf', 'sub_geography', 'Geography Grade 10 Short Notes', 'Upload this PDF in the matching Supabase Storage path.', 'subjects', 'geography/grade-10-short-notes.pdf', 'application/pdf', 10, true, current_timestamp),
+  ('asset_geography_grade_11_pdf', 'sub_geography', 'Geography Grade 11 Short Notes', 'Upload this PDF in the matching Supabase Storage path.', 'subjects', 'geography/grade-11-short-notes.pdf', 'application/pdf', 11, true, current_timestamp),
+  ('asset_geography_grade_12_pdf', 'sub_geography', 'Geography Grade 12 Short Notes', 'Upload this PDF in the matching Supabase Storage path.', 'subjects', 'geography/grade-12-short-notes.pdf', 'application/pdf', 12, true, current_timestamp),
+  ('asset_economics_grade_9_pdf', 'sub_economics', 'Economics Grade 9 Short Notes', 'Upload this PDF in the matching Supabase Storage path.', 'subjects', 'economics/grade-9-short-notes.pdf', 'application/pdf', 9, true, current_timestamp),
+  ('asset_economics_grade_10_pdf', 'sub_economics', 'Economics Grade 10 Short Notes', 'Upload this PDF in the matching Supabase Storage path.', 'subjects', 'economics/grade-10-short-notes.pdf', 'application/pdf', 10, true, current_timestamp),
+  ('asset_economics_grade_11_pdf', 'sub_economics', 'Economics Grade 11 Short Notes', 'Upload this PDF in the matching Supabase Storage path.', 'subjects', 'economics/grade-11-short-notes.pdf', 'application/pdf', 11, true, current_timestamp),
+  ('asset_economics_grade_12_pdf', 'sub_economics', 'Economics Grade 12 Short Notes', 'Upload this PDF in the matching Supabase Storage path.', 'subjects', 'economics/grade-12-short-notes.pdf', 'application/pdf', 12, true, current_timestamp)
 on conflict ("bucket", "path") do update set
   "title" = excluded."title",
   "description" = excluded."description",

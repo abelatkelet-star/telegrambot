@@ -43,9 +43,18 @@ The seed creates:
 - one package: `10-Day Grade 12 Social Science Reading Challenge`
 - three subjects: History, Geography, Economics
 - storage file records pointing to:
-  - `subjects/history/grade-9-12-short-notes.pdf`
-  - `subjects/geography/grade-9-12-short-notes.pdf`
-  - `subjects/economics/grade-9-12-short-notes.pdf`
+  - `subjects/history/grade-9-short-notes.pdf`
+  - `subjects/history/grade-10-short-notes.pdf`
+  - `subjects/history/grade-11-short-notes.pdf`
+  - `subjects/history/grade-12-short-notes.pdf`
+  - `subjects/geography/grade-9-short-notes.pdf`
+  - `subjects/geography/grade-10-short-notes.pdf`
+  - `subjects/geography/grade-11-short-notes.pdf`
+  - `subjects/geography/grade-12-short-notes.pdf`
+  - `subjects/economics/grade-9-short-notes.pdf`
+  - `subjects/economics/grade-10-short-notes.pdf`
+  - `subjects/economics/grade-11-short-notes.pdf`
+  - `subjects/economics/grade-12-short-notes.pdf`
 
 Upload those files in your Supabase Storage bucket. See [DATABASE.md](DATABASE.md) for the full schema model.
 

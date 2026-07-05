@@ -235,6 +235,37 @@ async function getSubjectAssets(subjectSlug) {
   };
 }
 
+async function getSubjectGradeAssets(subjectSlug, grade) {
+  const gradeNumber = Number(grade);
+  if (!Number.isInteger(gradeNumber) || gradeNumber < 9 || gradeNumber > 12) {
+    return null;
+  }
+
+  const subject = await prisma.subject.findUnique({
+    where: { slug: subjectSlug },
+    include: {
+      assets: {
+        where: {
+          isActive: true,
+          path: { contains: `grade-${gradeNumber}-short-notes` }
+        },
+        orderBy: { sortOrder: "asc" }
+      }
+    }
+  });
+
+  if (!subject) return null;
+
+  return {
+    ...subject,
+    grade: gradeNumber,
+    assets: subject.assets.map((asset) => ({
+      ...asset,
+      publicUrl: asset.publicUrl || buildPublicUrl(asset.bucket, asset.path)
+    }))
+  };
+}
+
 function buildPublicUrl(bucket, objectPath) {
   if (!SUPABASE_URL) return "";
   return `${SUPABASE_URL}/storage/v1/object/public/${bucket || STORAGE_BUCKET}/${objectPath}`;
@@ -251,5 +282,6 @@ module.exports = {
   approveStudent,
   finalizeApprovalRecords,
   rejectStudent,
-  getSubjectAssets
+  getSubjectAssets,
+  getSubjectGradeAssets
 };

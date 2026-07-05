@@ -31,6 +31,27 @@ const backMenu = {
   inline_keyboard: [[{ text: "Back to Home", callback_data: "home" }]]
 };
 
+function gradeMenu(subjectKey) {
+  return {
+    inline_keyboard: [
+      [{ text: "Grade 9", callback_data: `grade:${subjectKey}:9` }],
+      [{ text: "Grade 10", callback_data: `grade:${subjectKey}:10` }],
+      [{ text: "Grade 11", callback_data: `grade:${subjectKey}:11` }],
+      [{ text: "Grade 12", callback_data: `grade:${subjectKey}:12` }],
+      [{ text: "Back to Home", callback_data: "home" }]
+    ]
+  };
+}
+
+function gradeBackMenu(subjectKey) {
+  return {
+    inline_keyboard: [
+      [{ text: "Back to Grades", callback_data: `subject:${subjectKey}` }],
+      [{ text: "Back to Home", callback_data: "home" }]
+    ]
+  };
+}
+
 let offset = 0;
 
 async function telegram(method, payload) {
@@ -170,6 +191,33 @@ function assetSubjectMessage(subject) {
     .join("\n\n");
 
   return `<b>${escapeHtml(title)}</b>\n\n${files}`;
+}
+
+function gradeListMessage(subjectKey) {
+  const subject = notes[subjectKey];
+  const title = subject ? subject.title : subjectKey;
+  return `<b>${escapeHtml(title)}</b>\n\nChoose your grade.`;
+}
+
+function gradeAssetMessage(subject) {
+  const title = `${subject.title}${subject.titleAm ? ` (${subject.titleAm})` : ""}`;
+  if (!subject.assets.length) {
+    return (
+      `<b>${escapeHtml(title)} - Grade ${subject.grade}</b>\n\n` +
+      "No short note file found for this grade yet.\n\n" +
+      `Upload it to Supabase Storage as:\n<code>${escapeHtml(subject.slug)}/grade-${subject.grade}-short-notes.pdf</code>`
+    );
+  }
+
+  const files = subject.assets
+    .map((asset, index) => {
+      const label = `${index + 1}. ${asset.title}`;
+      if (asset.publicUrl) return `<a href="${escapeHtml(asset.publicUrl)}">${escapeHtml(label)}</a>`;
+      return `${escapeHtml(label)}\nStorage: <code>${escapeHtml(asset.bucket)}/${escapeHtml(asset.path)}</code>`;
+    })
+    .join("\n\n");
+
+  return `<b>${escapeHtml(title)} - Grade ${subject.grade}</b>\n\n${files}`;
 }
 
 async function handleMessage(message) {
@@ -332,9 +380,27 @@ async function handleCallback(callbackQuery) {
     }
 
     const subjectKey = action.split(":")[1];
-    const subject = await db.getSubjectAssets(subjectKey);
-    await answerCallback(callbackQuery, subject ? subject.title : "Subject");
-    await editMessage(chatId, messageId, subject ? assetSubjectMessage(subject) : fallbackSubjectMessage(subjectKey), backMenu);
+    await answerCallback(callbackQuery, "Choose grade");
+    await editMessage(chatId, messageId, gradeListMessage(subjectKey), gradeMenu(subjectKey));
+    return;
+  }
+
+  if (action.startsWith("grade:")) {
+    if (student.accessStatus !== "APPROVED") {
+      await answerCallback(callbackQuery, "Waiting for approval");
+      await editMessage(chatId, messageId, statusMessage(student), waitingMenu);
+      return;
+    }
+
+    const [, subjectKey, grade] = action.split(":");
+    const subject = await db.getSubjectGradeAssets(subjectKey, grade);
+    await answerCallback(callbackQuery, subject ? `Grade ${grade}` : "Grade");
+    await editMessage(
+      chatId,
+      messageId,
+      subject ? gradeAssetMessage(subject) : fallbackSubjectMessage(subjectKey),
+      gradeBackMenu(subjectKey)
+    );
   }
 }
 

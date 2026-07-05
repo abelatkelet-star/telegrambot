@@ -1,8 +1,8 @@
 const { PrismaClient } = require("@prisma/client");
 
 const prisma = new PrismaClient();
-
 const bucket = process.env.SUPABASE_STORAGE_BUCKET || "subjects";
+const grades = [9, 10, 11, 12];
 
 async function main() {
   const entrancePackage = await prisma.package.upsert({
@@ -25,27 +25,9 @@ async function main() {
   });
 
   const subjects = [
-    {
-      slug: "history",
-      title: "History",
-      titleAm: "ታሪክ",
-      sortOrder: 1,
-      filePath: "history/grade-9-12-short-notes.pdf"
-    },
-    {
-      slug: "geography",
-      title: "Geography",
-      titleAm: "ጂኦግራፊ",
-      sortOrder: 2,
-      filePath: "geography/grade-9-12-short-notes.pdf"
-    },
-    {
-      slug: "economics",
-      title: "Economics",
-      titleAm: "ኢኮኖሚክስ",
-      sortOrder: 3,
-      filePath: "economics/grade-9-12-short-notes.pdf"
-    }
+    { slug: "history", title: "History", titleAm: "ታሪክ", sortOrder: 1 },
+    { slug: "geography", title: "Geography", titleAm: "ጂኦግራፊ", sortOrder: 2 },
+    { slug: "economics", title: "Economics", titleAm: "ኢኮኖሚክስ", sortOrder: 3 }
   ];
 
   for (const item of subjects) {
@@ -81,30 +63,33 @@ async function main() {
       }
     });
 
-    await prisma.subjectAsset.upsert({
-      where: {
-        bucket_path: {
+    for (const grade of grades) {
+      const filePath = `${item.slug}/grade-${grade}-short-notes.pdf`;
+      await prisma.subjectAsset.upsert({
+        where: {
+          bucket_path: {
+            bucket,
+            path: filePath
+          }
+        },
+        update: {
+          title: `${item.title} Grade ${grade} Short Notes`,
+          subjectId: subject.id,
+          isActive: true,
+          sortOrder: grade
+        },
+        create: {
+          subjectId: subject.id,
+          title: `${item.title} Grade ${grade} Short Notes`,
+          description: "Upload this PDF in the matching Supabase Storage path.",
           bucket,
-          path: item.filePath
+          path: filePath,
+          mimeType: "application/pdf",
+          sortOrder: grade,
+          isActive: true
         }
-      },
-      update: {
-        title: `${item.title} Grade 9-12 Short Notes`,
-        subjectId: subject.id,
-        isActive: true,
-        sortOrder: 1
-      },
-      create: {
-        subjectId: subject.id,
-        title: `${item.title} Grade 9-12 Short Notes`,
-        description: "Upload this PDF in the matching Supabase Storage path.",
-        bucket,
-        path: item.filePath,
-        mimeType: "application/pdf",
-        sortOrder: 1,
-        isActive: true
-      }
-    });
+      });
+    }
   }
 }
 
