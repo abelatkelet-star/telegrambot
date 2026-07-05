@@ -137,13 +137,13 @@ function statusMessage(student) {
 }
 
 function adminNotice(student) {
+  const approveTarget = adminCommandTarget(student);
   return (
     "🧾 <b>New student waiting for approval</b>\n\n" +
     `<b>Name:</b> ${escapeHtml(student.firstName)} ${escapeHtml(student.lastName)}\n` +
     `<b>Telegram:</b> ${student.telegramUsername ? `@${escapeHtml(student.telegramUsername)}` : "No username"}\n` +
-    `<b>User ID:</b> <code>${student.telegramId}</code>\n\n` +
-    `Approve: <code>/approve ${student.telegramId}</code>\n` +
-    `Reject: <code>/reject ${student.telegramId}</code>`
+    `<b>Approve by name:</b> <code>/approve ${escapeHtml(approveTarget)}</code>\n` +
+    `<b>Reject by name:</b> <code>/reject ${escapeHtml(approveTarget)}</code>`
   );
 }
 
@@ -225,7 +225,8 @@ async function handleMessage(message) {
 
 async function handleCommand(message) {
   const chatId = message.chat.id;
-  const [command, arg] = message.text.trim().split(/\s+/);
+  const [command, ...args] = message.text.trim().split(/\s+/);
+  const target = args.join(" ");
   const adminCommands = ["/pending", "/approve", "/reject", "/users"];
 
   if (adminCommands.includes(command) && !isAdmin(message.from)) {
@@ -246,25 +247,38 @@ async function handleCommand(message) {
   }
 
   if (command === "/approve") {
-    await changeStudentStatus(chatId, arg, message.from.id, "approved");
+    await changeStudentStatus(chatId, target, message.from.id, "approved");
     return;
   }
 
   if (command === "/reject") {
-    await changeStudentStatus(chatId, arg, message.from.id, "rejected");
+    await changeStudentStatus(chatId, target, message.from.id, "rejected");
     return;
   }
 
   await sendMessage(chatId, "Available command: /start");
 }
 
-async function changeStudentStatus(adminChatId, targetTelegramId, adminTelegramId, action) {
-  if (!targetTelegramId) {
-    await sendMessage(adminChatId, "Send a User ID. Example: /approve 123456789");
+async function changeStudentStatus(adminChatId, target, adminTelegramId, action) {
+  if (!target) {
+    await sendMessage(adminChatId, "Send the student's first and last name. Example: /approve Abel Atkelet");
     return;
   }
 
   try {
+    const matches = await db.findStudentsForAdminTarget(target, action === "approved" ? "PENDING_PAYMENT" : undefined);
+    if (!matches.length) {
+      await sendMessage(adminChatId, "Student not found. Use /pending to see waiting students.");
+      return;
+    }
+
+    if (matches.length > 1) {
+      await sendMessage(adminChatId, "More than one student matched. Use /pending, then approve with the exact first and last name.");
+      return;
+    }
+
+    const targetTelegramId = matches[0].telegramId;
+
     if (action === "approved") {
       const student = await db.approveStudent(targetTelegramId, adminTelegramId);
       await sendMessage(adminChatId, `Approved ${escapeHtml(student.firstName)} ${escapeHtml(student.lastName)}.`);
@@ -334,9 +348,14 @@ function formatStudents(students) {
     .map((student) => {
       const name = `${student.firstName || "-"} ${student.lastName || ""}`.trim();
       const username = student.telegramUsername ? `@${student.telegramUsername}` : "no username";
-      return `${escapeHtml(name)} | ${escapeHtml(username)} | <code>${student.telegramId}</code> | ${student.accessStatus}`;
+      return `${escapeHtml(name)} | ${escapeHtml(username)} | ${student.accessStatus}\nApprove: <code>/approve ${escapeHtml(adminCommandTarget(student))}</code>`;
     })
     .join("\n");
+}
+
+function adminCommandTarget(student) {
+  const name = `${student.firstName || ""} ${student.lastName || ""}`.trim();
+  return name || student.telegramId;
 }
 
 function cleanName(value) {

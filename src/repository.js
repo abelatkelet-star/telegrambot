@@ -95,6 +95,38 @@ async function getAllStudents() {
   return prisma.student.findMany({ orderBy: { createdAt: "desc" } });
 }
 
+async function findStudentsForAdminTarget(target, accessStatus) {
+  const value = String(target || "").trim();
+  if (!value) return [];
+
+  if (/^\d+$/.test(value)) {
+    const student = await prisma.student.findUnique({ where: { telegramId: value } });
+    if (!student) return [];
+    if (accessStatus && student.accessStatus !== accessStatus) return [];
+    return [student];
+  }
+
+  const parts = value.split(/\s+/);
+  const firstName = parts[0];
+  const lastName = parts.slice(1).join(" ");
+  const where = {
+    firstName: { equals: firstName, mode: "insensitive" }
+  };
+
+  if (lastName) {
+    where.lastName = { equals: lastName, mode: "insensitive" };
+  }
+
+  if (accessStatus) {
+    where.accessStatus = accessStatus;
+  }
+
+  return prisma.student.findMany({
+    where,
+    orderBy: { createdAt: "asc" }
+  });
+}
+
 async function approveStudent(telegramId, adminTelegramId) {
   const pkg = await prisma.package.findUniqueOrThrow({ where: { slug: PACKAGE_SLUG } });
   const student = await prisma.student.update({
@@ -214,6 +246,7 @@ module.exports = {
   ensurePendingEnrollmentAndPayment,
   getPendingStudents,
   getAllStudents,
+  findStudentsForAdminTarget,
   approveStudent,
   rejectStudent,
   getSubjectAssets
