@@ -154,7 +154,9 @@ function paymentMessage(student) {
     "⏳ <b>Payment Waiting Page</b>\n\n" +
     "<b>Payment Accounts</b>\n" +
     "CBE: <code>1000300461313</code>\n" +
-    "Telebirr: <code>0993671417</code>\n\n" +
+    "Telebirr: <code>0993671417</code>\n" +
+    "BoA: <code>88685358</code>\n" +
+    "Awash: <code>013200741433501</code>\n\n" +
     `Please pay manually and send payment proof to @${ADMIN_USERNAME}.\n\n` +
     "After admin confirms your payment, your notes will unlock automatically.\n\n" +
     "Send your payment proof using the button below."
@@ -168,7 +170,9 @@ function statusMessage(student) {
       "⏳ Your account is waiting for manual payment approval.\n\n" +
       "<b>Payment Accounts</b>\n" +
       "CBE: <code>1000300461313</code>\n" +
-      "Telebirr: <code>0993671417</code>\n\n" +
+      "Telebirr: <code>0993671417</code>\n" +
+      "BoA: <code>88685358</code>\n" +
+      "Awash: <code>013200741433501</code>\n\n" +
       `Send your payment proof to @${ADMIN_USERNAME}.`
     );
   }
