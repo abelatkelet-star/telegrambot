@@ -113,6 +113,9 @@ function paymentMessage(student) {
   return (
     `✅ Registration completed: <b>${escapeHtml(student.firstName)} ${escapeHtml(student.lastName)}</b>\n\n` +
     "⏳ <b>Payment Waiting Page</b>\n\n" +
+    "<b>Payment Accounts</b>\n" +
+    "CBE: <code>1000300461313</code>\n" +
+    "Telebirr: <code>0993671417</code>\n\n" +
     `Please pay manually and send payment proof to @${ADMIN_USERNAME}.\n\n` +
     "After admin confirms your payment, your notes will unlock automatically.\n\n" +
     `<b>Your User ID:</b> <code>${student.telegramId}</code>\n` +
@@ -125,6 +128,9 @@ function statusMessage(student) {
   if (["PENDING_PAYMENT", "REJECTED"].includes(student.accessStatus)) {
     return (
       "⏳ Your account is waiting for manual payment approval.\n\n" +
+      "<b>Payment Accounts</b>\n" +
+      "CBE: <code>1000300461313</code>\n" +
+      "Telebirr: <code>0993671417</code>\n\n" +
       `Send payment proof and User ID <code>${student.telegramId}</code> to @${ADMIN_USERNAME}.`
     );
   }
