@@ -96,6 +96,14 @@ async function editMessage(chatId, messageId, text, replyMarkup) {
   });
 }
 
+async function editOrSendMenu(message, text, replyMarkup) {
+  if (message.text) {
+    return editMessage(message.chat.id, message.message_id, text, replyMarkup);
+  }
+
+  return sendMessage(message.chat.id, text, replyMarkup);
+}
+
 async function answerCallback(callbackQuery, text) {
   return telegram("answerCallbackQuery", {
     callback_query_id: callbackQuery.id,
@@ -383,33 +391,33 @@ async function handleCallback(callbackQuery) {
 
   if (action === "status") {
     await answerCallback(callbackQuery, "Status checked");
-    await editMessage(chatId, messageId, statusMessage(student), student.accessStatus === "APPROVED" ? subjectMenu : waitingMenu);
+    await editOrSendMenu(message, statusMessage(student), student.accessStatus === "APPROVED" ? subjectMenu : waitingMenu);
     return;
   }
 
   if (action === "home") {
     await answerCallback(callbackQuery, "Home");
-    await editMessage(chatId, messageId, homeMessage(student), subjectMenu);
+    await editOrSendMenu(message, homeMessage(student), subjectMenu);
     return;
   }
 
   if (action.startsWith("subject:")) {
     if (student.accessStatus !== "APPROVED") {
       await answerCallback(callbackQuery, "Waiting for approval");
-      await editMessage(chatId, messageId, statusMessage(student), waitingMenu);
+      await editOrSendMenu(message, statusMessage(student), waitingMenu);
       return;
     }
 
     const subjectKey = action.split(":")[1];
     await answerCallback(callbackQuery, "Choose grade");
-    await editMessage(chatId, messageId, gradeListMessage(subjectKey), gradeMenu(subjectKey));
+    await editOrSendMenu(message, gradeListMessage(subjectKey), gradeMenu(subjectKey));
     return;
   }
 
   if (action.startsWith("grade:")) {
     if (student.accessStatus !== "APPROVED") {
       await answerCallback(callbackQuery, "Waiting for approval");
-      await editMessage(chatId, messageId, statusMessage(student), waitingMenu);
+      await editOrSendMenu(message, statusMessage(student), waitingMenu);
       return;
     }
 
@@ -426,15 +434,15 @@ async function handleCallback(callbackQuery) {
           escapeHtml(asset.title),
           gradeBackMenu(subjectKey)
         );
-        await editMessage(chatId, messageId, `Sent <b>${escapeHtml(asset.title)}</b>.`, gradeBackMenu(subjectKey)).catch(() => {});
+        await editOrSendMenu(message, `Sent <b>${escapeHtml(asset.title)}</b>.`, gradeBackMenu(subjectKey)).catch(() => {});
       } catch (error) {
         console.error("Could not send grade PDF:", error.message);
-        await editMessage(chatId, messageId, missingGradeAssetMessage(subjectKey, grade, asset), gradeBackMenu(subjectKey));
+        await editOrSendMenu(message, missingGradeAssetMessage(subjectKey, grade, asset), gradeBackMenu(subjectKey));
       }
       return;
     }
 
-    await editMessage(chatId, messageId, missingGradeAssetMessage(subjectKey, grade, asset), gradeBackMenu(subjectKey));
+    await editOrSendMenu(message, missingGradeAssetMessage(subjectKey, grade, asset), gradeBackMenu(subjectKey));
   }
 }
 
