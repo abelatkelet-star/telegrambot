@@ -346,7 +346,7 @@ async function handleAdminCallback(callbackQuery) {
 
   if (action === "approve") {
     await answerCallback(callbackQuery, "Approving student...");
-    const student = await approveByTelegramId(chatId, targetTelegramId, callbackQuery.from.id);
+    const student = await approveByTelegramId(chatId, targetTelegramId, callbackQuery.from.id, false);
     await editMessage(chatId, messageId, `✅ Approved <b>${escapeHtml(student.firstName)} ${escapeHtml(student.lastName)}</b>.`);
     return;
   }
@@ -361,9 +361,11 @@ async function handleAdminCallback(callbackQuery) {
   }
 }
 
-async function approveByTelegramId(adminChatId, targetTelegramId, adminTelegramId) {
+async function approveByTelegramId(adminChatId, targetTelegramId, adminTelegramId, notifyAdmin = true) {
   const student = await db.approveStudent(targetTelegramId, adminTelegramId);
-  await sendMessage(adminChatId, `Approved ${escapeHtml(student.firstName)} ${escapeHtml(student.lastName)}.`);
+  if (notifyAdmin) {
+    await sendMessage(adminChatId, `Approved ${escapeHtml(student.firstName)} ${escapeHtml(student.lastName)}.`);
+  }
   await sendMessage(student.telegramId, homeMessage(student), subjectMenu).catch((error) => {
     console.error("Could not notify approved student:", error.message);
   });
