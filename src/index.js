@@ -142,8 +142,8 @@ function adminNotice(student) {
     "🧾 <b>New student waiting for approval</b>\n\n" +
     `<b>Name:</b> ${escapeHtml(student.firstName)} ${escapeHtml(student.lastName)}\n` +
     `<b>Telegram:</b> ${student.telegramUsername ? `@${escapeHtml(student.telegramUsername)}` : "No username"}\n` +
-    `<b>Approve by name:</b> <code>/approve ${escapeHtml(approveTarget)}</code>\n` +
-    `<b>Reject by name:</b> <code>/reject ${escapeHtml(approveTarget)}</code>`
+    "Tap the button below to approve, or use:\n" +
+    `<code>/approve ${escapeHtml(approveTarget)}</code>`
   );
 }
 
@@ -236,7 +236,7 @@ async function handleCommand(message) {
 
   if (command === "/pending") {
     const pending = await db.getPendingStudents();
-    await sendMessage(chatId, pending.length ? formatStudents(pending) : "No pending students.");
+    await sendMessage(chatId, pending.length ? formatStudents(pending) : "No pending students.", pending.length ? pendingApprovalMenu(pending) : undefined);
     return;
   }
 
@@ -280,11 +280,7 @@ async function changeStudentStatus(adminChatId, target, adminTelegramId, action)
     const targetTelegramId = matches[0].telegramId;
 
     if (action === "approved") {
-      const student = await db.approveStudent(targetTelegramId, adminTelegramId);
-      await sendMessage(adminChatId, `Approved ${escapeHtml(student.firstName)} ${escapeHtml(student.lastName)}.`);
-      await sendMessage(student.telegramId, homeMessage(student), subjectMenu).catch((error) => {
-        console.error("Could not notify approved student:", error.message);
-      });
+      await approveByTelegramId(adminChatId, targetTelegramId, adminTelegramId);
       return;
     }
 
@@ -303,8 +299,14 @@ async function handleCallback(callbackQuery) {
   const message = callbackQuery.message;
   const chatId = message.chat.id;
   const messageId = message.message_id;
-  const student = await db.getOrCreateStudent(callbackQuery.from);
   const action = callbackQuery.data;
+
+  if (action.startsWith("admin:")) {
+    await handleAdminCallback(callbackQuery);
+    return;
+  }
+
+  const student = await db.getOrCreateStudent(callbackQuery.from);
 
   if (action === "status") {
     await answerCallback(callbackQuery, "Status checked");
@@ -332,13 +334,49 @@ async function handleCallback(callbackQuery) {
   }
 }
 
+async function handleAdminCallback(callbackQuery) {
+  const chatId = callbackQuery.message.chat.id;
+  const messageId = callbackQuery.message.message_id;
+  const [, action, targetTelegramId] = callbackQuery.data.split(":");
+
+  if (!isAdmin(callbackQuery.from)) {
+    await answerCallback(callbackQuery, "Admin only");
+    return;
+  }
+
+  if (action === "approve") {
+    await answerCallback(callbackQuery, "Approving student...");
+    const student = await approveByTelegramId(chatId, targetTelegramId, callbackQuery.from.id);
+    await editMessage(chatId, messageId, `✅ Approved <b>${escapeHtml(student.firstName)} ${escapeHtml(student.lastName)}</b>.`);
+    return;
+  }
+
+  if (action === "reject") {
+    await answerCallback(callbackQuery, "Rejecting student...");
+    const student = await db.rejectStudent(targetTelegramId, callbackQuery.from.id);
+    await editMessage(chatId, messageId, `Rejected <b>${escapeHtml(student.firstName)} ${escapeHtml(student.lastName)}</b>.`);
+    await sendMessage(student.telegramId, "Your payment is not approved yet. Please contact admin again with correct proof.", waitingMenu).catch((error) => {
+      console.error("Could not notify rejected student:", error.message);
+    });
+  }
+}
+
+async function approveByTelegramId(adminChatId, targetTelegramId, adminTelegramId) {
+  const student = await db.approveStudent(targetTelegramId, adminTelegramId);
+  await sendMessage(adminChatId, `Approved ${escapeHtml(student.firstName)} ${escapeHtml(student.lastName)}.`);
+  await sendMessage(student.telegramId, homeMessage(student), subjectMenu).catch((error) => {
+    console.error("Could not notify approved student:", error.message);
+  });
+  return student;
+}
+
 async function notifyAdmin(student) {
   if (!ADMIN_CHAT_ID) {
     console.log(`New pending student ${student.telegramId}: ${student.firstName} ${student.lastName}. Set ADMIN_CHAT_ID to receive bot messages.`);
     return;
   }
 
-  await sendMessage(ADMIN_CHAT_ID, adminNotice(student)).catch((error) => {
+  await sendMessage(ADMIN_CHAT_ID, adminNotice(student), adminDecisionMenu(student)).catch((error) => {
     console.error("Could not notify admin:", error.message);
   });
 }
@@ -348,14 +386,38 @@ function formatStudents(students) {
     .map((student) => {
       const name = `${student.firstName || "-"} ${student.lastName || ""}`.trim();
       const username = student.telegramUsername ? `@${student.telegramUsername}` : "no username";
-      return `${escapeHtml(name)} | ${escapeHtml(username)} | ${student.accessStatus}\nApprove: <code>/approve ${escapeHtml(adminCommandTarget(student))}</code>`;
+      return `${escapeHtml(name)} | ${escapeHtml(username)} | ${student.accessStatus}`;
     })
     .join("\n");
+}
+
+function pendingApprovalMenu(students) {
+  return {
+    inline_keyboard: students.map((student) => [
+      {
+        text: `Approve ${buttonName(student)}`,
+        callback_data: `admin:approve:${student.telegramId}`
+      }
+    ])
+  };
+}
+
+function adminDecisionMenu(student) {
+  return {
+    inline_keyboard: [
+      [{ text: `Approve ${buttonName(student)}`, callback_data: `admin:approve:${student.telegramId}` }],
+      [{ text: `Reject ${buttonName(student)}`, callback_data: `admin:reject:${student.telegramId}` }]
+    ]
+  };
 }
 
 function adminCommandTarget(student) {
   const name = `${student.firstName || ""} ${student.lastName || ""}`.trim();
   return name || student.telegramId;
+}
+
+function buttonName(student) {
+  return adminCommandTarget(student).slice(0, 40);
 }
 
 function cleanName(value) {
