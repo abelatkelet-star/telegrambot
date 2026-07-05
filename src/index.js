@@ -118,8 +118,7 @@ function paymentMessage(student) {
     "Telebirr: <code>0993671417</code>\n\n" +
     `Please pay manually and send payment proof to @${ADMIN_USERNAME}.\n\n` +
     "After admin confirms your payment, your notes will unlock automatically.\n\n" +
-    `<b>Your User ID:</b> <code>${student.telegramId}</code>\n` +
-    "Send this User ID together with your payment proof."
+    "Send your payment proof using the button below."
   );
 }
 
@@ -131,7 +130,7 @@ function statusMessage(student) {
       "<b>Payment Accounts</b>\n" +
       "CBE: <code>1000300461313</code>\n" +
       "Telebirr: <code>0993671417</code>\n\n" +
-      `Send payment proof and User ID <code>${student.telegramId}</code> to @${ADMIN_USERNAME}.`
+      `Send your payment proof to @${ADMIN_USERNAME}.`
     );
   }
   return "Please send /start to begin registration.";
