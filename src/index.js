@@ -373,6 +373,9 @@ async function approveByTelegramId(adminChatId, targetTelegramId, adminTelegramI
   await sendMessage(student.telegramId, homeMessage(student), subjectMenu).catch((error) => {
     console.error("Could not notify approved student:", error.message);
   });
+  db.finalizeApprovalRecords(student, adminTelegramId).catch((error) => {
+    console.error("Could not finalize approval records:", error.message);
+  });
   return student;
 }
 

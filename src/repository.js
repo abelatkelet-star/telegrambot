@@ -128,14 +128,17 @@ async function findStudentsForAdminTarget(target, accessStatus) {
 }
 
 async function approveStudent(telegramId, adminTelegramId) {
-  const pkg = await prisma.package.findUniqueOrThrow({ where: { slug: PACKAGE_SLUG } });
-  const student = await prisma.student.update({
+  return prisma.student.update({
     where: { telegramId: String(telegramId) },
     data: {
       accessStatus: "APPROVED",
       registrationStep: "APPROVED"
     }
   });
+}
+
+async function finalizeApprovalRecords(student, adminTelegramId) {
+  const pkg = await prisma.package.findUniqueOrThrow({ where: { slug: PACKAGE_SLUG } });
 
   await prisma.enrollment.upsert({
     where: {
@@ -176,8 +179,6 @@ async function approveStudent(telegramId, adminTelegramId) {
       action: "APPROVED"
     }
   });
-
-  return student;
 }
 
 async function rejectStudent(telegramId, adminTelegramId) {
@@ -248,6 +249,7 @@ module.exports = {
   getAllStudents,
   findStudentsForAdminTarget,
   approveStudent,
+  finalizeApprovalRecords,
   rejectStudent,
   getSubjectAssets
 };
