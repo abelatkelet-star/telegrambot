@@ -75,6 +75,16 @@ async function sendMessage(chatId, text, replyMarkup) {
   });
 }
 
+async function sendDocument(chatId, documentUrl, caption, replyMarkup) {
+  return telegram("sendDocument", {
+    chat_id: chatId,
+    document: documentUrl,
+    caption,
+    parse_mode: "HTML",
+    reply_markup: replyMarkup
+  });
+}
+
 async function editMessage(chatId, messageId, text, replyMarkup) {
   return telegram("editMessageText", {
     chat_id: chatId,
@@ -218,6 +228,17 @@ function gradeAssetMessage(subject) {
     .join("\n\n");
 
   return `<b>${escapeHtml(title)} - Grade ${subject.grade}</b>\n\n${files}`;
+}
+
+function missingGradeAssetMessage(subjectKey, grade, asset) {
+  const subject = notes[subjectKey];
+  const title = subject ? subject.title : subjectKey;
+  return (
+    `<b>${escapeHtml(title)} - Grade ${escapeHtml(grade)}</b>\n\n` +
+    "I could not send the PDF from Supabase Storage.\n\n" +
+    "Make sure the bucket is public and upload the file here:\n" +
+    `<code>${escapeHtml(asset.bucket)}/${escapeHtml(asset.path)}</code>`
+  );
 }
 
 async function handleMessage(message) {
@@ -394,13 +415,26 @@ async function handleCallback(callbackQuery) {
 
     const [, subjectKey, grade] = action.split(":");
     const subject = await db.getSubjectGradeAssets(subjectKey, grade);
-    await answerCallback(callbackQuery, subject ? `Grade ${grade}` : "Grade");
-    await editMessage(
-      chatId,
-      messageId,
-      subject ? gradeAssetMessage(subject) : fallbackSubjectMessage(subjectKey),
-      gradeBackMenu(subjectKey)
-    );
+    const asset = subject?.assets?.[0] || db.buildGradeAsset(subjectKey, grade);
+    await answerCallback(callbackQuery, `Sending Grade ${grade} PDF`);
+
+    if (asset.publicUrl) {
+      try {
+        await sendDocument(
+          chatId,
+          asset.publicUrl,
+          escapeHtml(asset.title),
+          gradeBackMenu(subjectKey)
+        );
+        await editMessage(chatId, messageId, `Sent <b>${escapeHtml(asset.title)}</b>.`, gradeBackMenu(subjectKey)).catch(() => {});
+      } catch (error) {
+        console.error("Could not send grade PDF:", error.message);
+        await editMessage(chatId, messageId, missingGradeAssetMessage(subjectKey, grade, asset), gradeBackMenu(subjectKey));
+      }
+      return;
+    }
+
+    await editMessage(chatId, messageId, missingGradeAssetMessage(subjectKey, grade, asset), gradeBackMenu(subjectKey));
   }
 }
 

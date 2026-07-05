@@ -271,6 +271,23 @@ function buildPublicUrl(bucket, objectPath) {
   return `${SUPABASE_URL}/storage/v1/object/public/${bucket || STORAGE_BUCKET}/${objectPath}`;
 }
 
+function buildGradeAsset(subjectSlug, grade) {
+  const path = `${subjectSlug}/grade-${grade}-short-notes.pdf`;
+  return {
+    title: `${titleize(subjectSlug)} Grade ${grade} Short Notes`,
+    bucket: STORAGE_BUCKET,
+    path,
+    publicUrl: buildPublicUrl(STORAGE_BUCKET, path)
+  };
+}
+
+function titleize(value) {
+  return String(value || "")
+    .split("-")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
 module.exports = {
   getOrCreateStudent,
   setFirstName,
@@ -283,5 +300,6 @@ module.exports = {
   finalizeApprovalRecords,
   rejectStudent,
   getSubjectAssets,
-  getSubjectGradeAssets
+  getSubjectGradeAssets,
+  buildGradeAsset
 };
