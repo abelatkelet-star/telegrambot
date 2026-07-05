@@ -14,6 +14,7 @@ Telegram bot for the 10-Day Grade 12 Social Science Reading Challenge. It regist
    - `SUPABASE_URL`: your Supabase project URL, like `https://PROJECT_REF.supabase.co`.
    - `SUPABASE_STORAGE_BUCKET`: usually `subjects`.
    - `PACKAGE_SLUG`: optional, default is `grade-12-social-science-10-day`.
+   - `PROTECT_CONTENT`: optional, default is `true`. Helps prevent forwarding/saving Telegram messages and PDFs.
 4. Railway will run the worker using `npm start`.
 
 Use this bot with Telegram long polling. Do not set a webhook for the same bot token.

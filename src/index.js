@@ -4,6 +4,7 @@ const db = require("./repository");
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const ADMIN_USERNAME = (process.env.ADMIN_USERNAME || "ALPHA_TUTOR_21").replace(/^@/, "");
 const ADMIN_CHAT_ID = process.env.ADMIN_CHAT_ID ? String(process.env.ADMIN_CHAT_ID) : "";
+const PROTECT_CONTENT = process.env.PROTECT_CONTENT !== "false";
 const API = BOT_TOKEN ? `https://api.telegram.org/bot${BOT_TOKEN}` : "";
 
 if (!BOT_TOKEN) {
@@ -71,6 +72,7 @@ async function sendMessage(chatId, text, replyMarkup) {
     text,
     parse_mode: "HTML",
     disable_web_page_preview: true,
+    protect_content: PROTECT_CONTENT,
     reply_markup: replyMarkup
   });
 }
@@ -81,6 +83,7 @@ async function sendDocument(chatId, documentUrl, caption, replyMarkup) {
     document: documentUrl,
     caption,
     parse_mode: "HTML",
+    protect_content: PROTECT_CONTENT,
     reply_markup: replyMarkup
   });
 }
