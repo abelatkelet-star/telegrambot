@@ -248,12 +248,19 @@ function gradeAssetMessage(subject) {
 function missingGradeAssetMessage(subjectKey, grade, asset) {
   const subject = notes[subjectKey];
   const title = subject ? subject.title : subjectKey;
+  const directLink = asset.publicUrl ? `\n\nDirect link: <a href="${escapeHtml(asset.publicUrl)}">Open PDF</a>` : "";
   return (
     `<b>${escapeHtml(title)} - Grade ${escapeHtml(grade)}</b>\n\n` +
-    "I could not send the PDF from Supabase Storage.\n\n" +
+    "Telegram could not attach the PDF from Supabase Storage.\n\n" +
     "Make sure the bucket is public and upload the file here:\n" +
-    `<code>${escapeHtml(asset.bucket)}/${escapeHtml(asset.path)}</code>`
+    `<code>${escapeHtml(asset.bucket)}/${escapeHtml(asset.path)}</code>` +
+    directLink
   );
+}
+
+function cacheBustedUrl(url) {
+  const separator = String(url).includes("?") ? "&" : "?";
+  return `${url}${separator}v=${Date.now()}`;
 }
 
 async function handleMessage(message) {
@@ -437,7 +444,7 @@ async function handleCallback(callbackQuery) {
       try {
         await sendDocument(
           chatId,
-          asset.publicUrl,
+          cacheBustedUrl(asset.publicUrl),
           escapeHtml(asset.title),
           gradeBackMenu(subjectKey)
         );

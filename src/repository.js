@@ -268,7 +268,11 @@ async function getSubjectGradeAssets(subjectSlug, grade) {
 
 function buildPublicUrl(bucket, objectPath) {
   if (!SUPABASE_URL) return "";
-  return `${SUPABASE_URL}/storage/v1/object/public/${bucket || STORAGE_BUCKET}/${objectPath}`;
+  const encodedPath = String(objectPath)
+    .split("/")
+    .map((part) => encodeURIComponent(part))
+    .join("/");
+  return `${SUPABASE_URL}/storage/v1/object/public/${encodeURIComponent(bucket || STORAGE_BUCKET)}/${encodedPath}`;
 }
 
 function buildGradeAsset(subjectSlug, grade) {
